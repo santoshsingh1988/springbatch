@@ -1,0 +1,141 @@
+
+public class GenrateFilesWithLargeData {
+
+	public static String dummyString = "|     date-11-191675  01  01/14/2013  2368183100   ounhqex xufqony            s1   no            yes                             000    yes";
+	public static int totalCount = 10_000_000;
+	public static final String ROOT_PATH = "C:\\Users\\703168406\\Documents\\My Data\\Genpact Personal\\EclipsWS\\Projects\\";
+	
+	public static void main(String[] args) {
+		writeLargeFile();
+		readSearchSortedFileAndWriteMatchedRecordsToNewFile(ROOT_PATH+"input.txt", ROOT_PATH+"search.txt", ROOT_PATH+"output.txt",
+				new int[]{0, 16}, new int[]{0, 16}, "\\|");
+		System.out.println("Main Completed.....");
+		
+		//readLineMarkTest();
+		
+	}
+	private static void readSearchSortedFileAndWriteMatchedRecordsToNewFile(String inputFile, String SearchFile, String outputFile,
+			int[] inputKeyIndexs,int[] searchKeyIndexs, String delimeterRemoveFromkey) {
+		
+		System.out.println("Read Write File Started.");
+		long time = System.currentTimeMillis();
+		try(
+				BufferedReader in = new BufferedReader(new FileReader(inputFile));
+				BufferedReader search = new BufferedReader(new FileReader(SearchFile));
+				FileWriter myWriter = new FileWriter(outputFile);
+			) {
+			
+		    String inLine = in.readLine();
+		    String searchLine = search.readLine();
+		    boolean isLoopEnd = true;
+		    while(isLoopEnd) {
+	    		
+		    	if(searchLine == null || inLine == null) {
+		    		isLoopEnd = false;
+		    		break;
+		    	}
+		    	String searchLineSubString = searchLine.substring(searchKeyIndexs[0], searchKeyIndexs[1]);
+		    	String inputLineSubString = inLine.substring(searchKeyIndexs[0], searchKeyIndexs[1]);
+		    	
+		    	long seachInt = Long.parseLong(searchLineSubString.replaceAll(delimeterRemoveFromkey, ""));
+		    	long inInt = Long.parseLong(inputLineSubString.replaceAll(delimeterRemoveFromkey, ""));
+		    	
+	    		 if(searchLineSubString.equalsIgnoreCase(inputLineSubString)) {
+	    			
+	    			 myWriter.write(inLine.toUpperCase() + System.lineSeparator());
+	    		 }
+	    		 if(seachInt < inInt) {
+	    			 searchLine = search.readLine();
+	    		 }else {
+	    			 inLine = in.readLine();
+	    		 }
+	    		 
+	    	 }
+		  
+		    in.close();
+		    myWriter.close();
+		    search.close();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		System.out.println("Read and Write to File done in - " + (System.currentTimeMillis() - time));
+	}
+
+	private static void writeLargeFile() {
+		long mainTime = System.currentTimeMillis();
+		try {
+
+			Thread t1 = new Thread(new Runnable() {
+				public void run() {
+					System.out.println("Input File Started.");
+					long time = System.currentTimeMillis();
+					try {
+						FileWriter myWriter = new FileWriter(ROOT_PATH+"input.txt");
+						for(long i = 1 ; i < totalCount;i++) {
+							myWriter.write(getKey(i+"", 9)+ "|" + "202108" + dummyString);
+							myWriter.write(System.lineSeparator());
+						}
+						myWriter.close();
+						System.out.println("Input File Time Taken - " + (System.currentTimeMillis() - time));
+						
+					} catch (Exception e) {
+						e.printStackTrace();
+					}finally {
+						synchronized (this) {
+							System.out.println("NotifyAll Threads....");
+							this.notifyAll();
+						}
+					}
+				}
+
+			}, "InputFile");
+
+			
+			Thread t2 = new Thread(new Runnable() {
+				public void run() {
+					try {
+						long time = System.currentTimeMillis();
+						FileWriter myWriter = new FileWriter(ROOT_PATH + "search.txt");
+						for(long i = 1 ; i < totalCount;i++) {
+							if(i % 2 == 0) {
+								myWriter.write(getKey(i+"", 9)+ "|" + "202108" + dummyString);
+								myWriter.write(System.lineSeparator());
+							}
+						}
+						myWriter.close();
+						System.out.println("Search File - " + (System.currentTimeMillis() - time));
+					} catch (Exception e) {
+						e.printStackTrace();
+					}finally {
+						synchronized (this) {
+							this.notifyAll();
+						}
+					}
+				}
+			});
+			
+			t1.start();
+			t2.start();
+			synchronized (t1) {
+				System.out.println("Waiting for thread to complete....");
+				t1.wait();
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+
+	public static String getKey(String in, int count) throws InterruptedException {
+		int missingCount = count - in.length();
+		StringBuffer res = new StringBuffer();
+		res.append("1");
+		for(int i = 0; i < missingCount; i++) {
+			res.append("0");
+		}
+		//Thread.sleep(0, 1);
+		return res.append(in).toString();
+	}
+}
